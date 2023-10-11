@@ -22,17 +22,11 @@ public class WebSocketEventListener {
             SessionDisconnectEvent event
     ) {
         var headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
-        var username = headerAccessor.getSessionAttributes().get("username").toString();
-        if (username != null) {
-            log.info("User disconnected: {}", username);
-
-            var chatMessage = ChatClient
-                    .builder()
-                    .type(MessageType.LEAVE)
-                    .sender(username)
-                    .build();
-
-            messageTemplate.convertAndSend("/topic/public", chatMessage);
+        var client = (ChatClient) headerAccessor.getSessionAttributes().get("client");
+        if (client != null) {
+            log.info("Client disconnected: {}", client);
+            client.setType(MessageType.LEAVE);
+            messageTemplate.convertAndSend("/topic/" + client.getRoomID(), client);
         }
     }
 

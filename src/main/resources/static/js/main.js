@@ -2,12 +2,13 @@
 
 const usernamePage = document.querySelector('#username-page');
 const chatPage = document.querySelector('#chat-page');
-const usernameForm = document.querySelector('#usernameForm');
+const homeForm = document.querySelector('#usernameForm');
 const messageForm = document.querySelector('#messageForm');
 const messageInput = document.querySelector('#message');
 const messageArea = document.querySelector('#messageArea');
 const connectingElement = document.querySelector('.connecting');
 
+let roomID = null;
 let stompClient = null;
 let username = null;
 
@@ -18,6 +19,12 @@ const colors = [
 
 function connect(event) {
     username = document.querySelector('#name').value.trim();
+    roomID = document.querySelector('#roomID').value.trim();
+
+    if (roomID.length === 0) {
+        roomID = generateCode(5);
+    }
+    document.querySelector('#room').innerHTML = "Room: " + roomID;
 
     if(username) {
         usernamePage.classList.add('hidden');
@@ -33,12 +40,16 @@ function connect(event) {
 
 function onConnected() {
     // Subscribe to the Public Topic
-    stompClient.subscribe('/topic/public', onMessageReceived);
+    stompClient.subscribe(`/topic/${roomID}`, onMessageReceived);
 
     // Tell your username to the server
-    stompClient.send("/app/chat.addUser",
+    stompClient.send(`/app/chat/${roomID}/add`,
         {},
-        JSON.stringify({sender: username, type: 'JOIN'})
+        JSON.stringify({
+            sender: username,
+            roomID: roomID,
+            type: 'JOIN'
+        })
     )
 
     connectingElement.classList.add('hidden');
@@ -55,9 +66,10 @@ function sendMessage(event) {
         const chatMessage = {
             sender: username,
             content: messageInput.value,
+            roomID: roomID,
             type: 'CHAT'
         };
-        stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+        stompClient.send(`/app/chat/${roomID}/send`, {}, JSON.stringify(chatMessage));
         messageInput.value = '';
     }
     event.preventDefault();
@@ -65,6 +77,7 @@ function sendMessage(event) {
 
 function onMessageReceived(payload) {
     const message = JSON.parse(payload.body);
+    // console.log(payload);
 
     const messageElement = document.createElement('li');
 
@@ -109,5 +122,17 @@ function getAvatarColor(messageSender) {
     return colors[index];
 }
 
-usernameForm.addEventListener('submit', connect, true)
+function generateCode(length) {
+    const characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let randomCode = '';
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        randomCode += characters[randomIndex];
+    }
+
+    return randomCode;
+}
+
+homeForm.addEventListener('submit', connect, true)
 messageForm.addEventListener('submit', sendMessage, true)

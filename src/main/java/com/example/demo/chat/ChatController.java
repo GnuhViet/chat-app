@@ -1,6 +1,7 @@
 package com.example.demo.chat;
 
 import lombok.AllArgsConstructor;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
@@ -12,22 +13,25 @@ import org.springframework.stereotype.Controller;
 @AllArgsConstructor
 public class ChatController {
 
-    // private final SimpMessageSendingOperations messageTemplate;
+    private final SimpMessageSendingOperations messageTemplate;
 
-    @MessageMapping("/chat.sendMessage")
-    @SendTo("/topic/public")
-    public ChatClient sendMessage(@Payload ChatClient chatClient) {
-        return chatClient;
+    @MessageMapping("/chat/{roomID}/send")
+    public void sendMessage(
+            @DestinationVariable String roomID,
+            @Payload ChatClient chatClient
+    ) {
+        messageTemplate.convertAndSend("/topic/" + roomID, chatClient);
     }
 
-    @MessageMapping("/chat.addUser")
-    @SendTo("/topic/public")
-    public ChatClient addUser(
+    @MessageMapping("/chat/{roomID}/add")
+    public void addUser(
+            @DestinationVariable String roomID,
             @Payload ChatClient chatClient,
             SimpMessageHeaderAccessor headerAccessor
     ) {
         // Add username in websocket session
-        headerAccessor.getSessionAttributes().put("username", chatClient.getSender());
-        return chatClient;
+        headerAccessor.getSessionAttributes().put("client", chatClient);
+        // send the message
+        messageTemplate.convertAndSend("/topic/" + roomID, chatClient);
     }
 }
